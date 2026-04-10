@@ -1,44 +1,61 @@
+# 1. Имя рабочего процесса. Отображается во вкладке "Actions" репозитория GitHub.
+# Позволяет идентифицировать этот workflow среди других.
 name: Manual Test Run
 
+# 2. Триггер (условие запуска):
+# workflow_dispatch: позволяет запустить процесс вручную из вкладки Actions.
 on:
   workflow_dispatch:
 
+# 3. Задача (Job), которая будет выполняться.
+# runner: указывает операционную систему (Ubuntu latest).
 jobs:
   run-tests:
     runs-on: ubuntu-latest
+
+    # 4. Шаги (steps) — последовательность действий:
     steps:
 
-      # Шаг 1: Клонирование репозитория
+      # Шаг 1: Клонирование кода репозитория на виртуальную машину GitHub.
       - name: Cloning repository
         uses: actions/checkout@v4
       
-      # Шаг 2: Установка ноды
+      # Шаг 2: Установка Node.js (необходим для JS-проекта). Указываем версию 20.
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with: 
           node-version: '22.17.0'
 
-      # Шаг 3: Установка зависимостей
+      # Шаг 3: Установка зависимостей. Команда npm install читает package.json и устанавливает все пакеты
       - name: Install dependencies
         run: npm install
 
-      # Шаг 4: Установка браузеров playwright
+      # Шаг 4: Установка браузеров Playwright. Без этого шага тесты не смогут запуститься — будет ошибка "No browsers found"
+      # Флаг --with-deps также устанавливает системные зависимости (библиотеки)
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
 
-      # Шаг 5: Запуск UI тестов
+      # Шаг 5: Запуск UI-тестов (интерфейс пользователя)
+      # Отчёт сохраняется в отдельную папку playwright-report-ui
       - name: Run UI tests
         run: npm run tests:ui -- --reporter=html
         env: 
           PLAYWRIGHT_HTML_REPORT: playwright-report-ui
       
-      # Шаг 6: Запуск API тестов
+      # Шаг 6: Запуск API-тестов (тестирование бэкенда без интерфейса)
+      # Отчёт сохраняется в отдельную папку playwright-report-api
       - name: Run API tests
         run: npm run tests:api -- --reporter=html
         env: 
           PLAYWRIGHT_HTML_REPORT: playwright-report-api
 
-      # Шаг 7: Загрузка отчётов
+      # Шаг 7: Загрузка отчётов как артефактов
+      # Артефакты — это файлы, которые сохраняются после выполнения workflow.
+      # Их можно скачать со страницы запуска (кнопка "Summary" → "Artifacts")
+      # Условие "if: always()" означает: загружать отчёт ДАЖЕ если тесты провалились.
+      # Без этого при падении тестов шаг загрузки будет пропущен, и вы не увидите, какие именно тесты упали.
+
+      # Загрузка отчёта UI-тестов
       - name: Upload UI test report
         if: always()
         uses: actions/upload-artifact@v4
@@ -46,7 +63,8 @@ jobs:
           name: playwright-report-ui
           path: playwright-report-ui/ 
           retention-days: 7
-      
+
+      # Загрузка отчёта API-тестов
       - name: Upload API test report
         if: always()
         uses: actions/upload-artifact@v4
